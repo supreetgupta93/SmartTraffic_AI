@@ -1,67 +1,154 @@
 # SmartTraffic AI
 
-A beginner-friendly Python project for real-time vehicle detection and counting using YOLOv8 and OpenCV.
+A beginner-friendly AI-based traffic monitoring system for real-time vehicle detection and counting using YOLOv8 and OpenCV.
+
+---
+
+## Features
+
+- Real-time vehicle detection
+- Vehicle counting system
+- YOLOv8 object detection
+- OpenCV video processing
+- Bounding box visualization
+- Beginner-friendly implementation
+
+---
+
+## Tech Stack
+
+- Python
+- OpenCV
+- YOLOv8
+- Ultralytics
+
+---
 
 ## Folder Structure
 
-```
+```bash
 SmartTraffic_AI/
 ├── assets/
-│   └── traffic.mp4        # Your sample traffic video file
+│   └── output.png        # Output screenshot
 ├── smart_traffic.py      # Main detection script
 ├── requirements.txt      # Python dependencies
-├── README.md             # This file
-└── .gitignore            # Ignore files for Git
+├── README.md             # Project documentation
+└── .gitignore            # Ignore unnecessary files
 ```
+
+---
 
 ## Installation
 
-1. Install Python 3.10 or newer.
-2. Open a terminal in the `SmartTraffic_AI` folder.
-3. Create a virtual environment:
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/supreetgupta93/SmartTraffic_AI.git
+cd SmartTraffic_AI
+```
+
+### 2. Create Virtual Environment
 
 ```bash
 python -m venv venv
 ```
 
-4. Activate the environment:
+### 3. Activate Environment
 
-- Windows:
-  ```bash
-  venv\Scripts\activate
-  ```
-- macOS/Linux:
-  ```bash
-  source venv/bin/activate
-  ```
+#### Windows
 
-5. Install dependencies:
+```bash
+venv\Scripts\activate
+```
+
+#### macOS/Linux
+
+```bash
+source venv/bin/activate
+```
+
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-6. Place your traffic video in `assets/` and name it `traffic.mp4` or update the `--source` path.
+---
 
-## Run the project
+## Run the Project
+
+Place your traffic video locally and run:
 
 ```bash
 python smart_traffic.py --source assets/traffic.mp4
 ```
 
-Press `Esc` to stop the live OpenCV window.
+Press `Esc` to close the OpenCV window.
 
-## How YOLOv8 works
+---
 
-YOLOv8 is an object detection model that processes each image in a single pass. It divides the image into grid cells and predicts bounding boxes, class labels, and confidence scores simultaneously. The `yolov8n.pt` model is the nano variant, optimized for fast inference on CPU while still providing good detection accuracy.
+## How YOLOv8 Works
 
-## How vehicle counting works
+YOLOv8 is a real-time object detection model that processes images in a single pass. It detects vehicles by predicting:
 
-The script detects vehicle classes such as cars, motorcycles, bicycles, buses, and trucks. For every frame, it draws bounding boxes and counts the detection results. The total number of vehicles in the current frame is displayed on the screen.
+- Bounding boxes
+- Object classes
+- Confidence scores
 
-## Notes
+The project uses `yolov8n.pt` (nano model) for faster performance and lightweight execution.
 
-- If you want to use your own video file, change the `--source` path when running the script.
-- `yolov8n.pt` will be downloaded automatically by the `ultralytics` package if it is not already present.
-"# SmartTraffic_AI" 
-"# SmartTraffic_AI" 
+---
+
+## How Vehicle Counting Works
+
+The system detects vehicles such as:
+
+- Cars
+- Bikes
+- Trucks
+- Buses
+
+For each frame:
+1. YOLOv8 detects vehicles
+2. Bounding boxes are drawn
+3. Detected vehicles are counted
+4. Total count is displayed on screen
+
+---
+
+## Input
+
+- Traffic video
+- CCTV footage
+- Road camera feed
+
+---
+
+## Output
+
+- Vehicle detection boxes
+- Vehicle labels
+- Total vehicle count
+- Real-time traffic monitoring
+
+---
+
+## Future Improvements
+
+- Traffic congestion analysis
+- Speed detection
+- Accident detection
+- Smart traffic light control
+- Multi-camera support
+
+---
+
+## Demo Video
+
+Add your Google Drive or YouTube demo link here.
+
+---
+
+## Author
+
+Supreet Gupta
