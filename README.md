@@ -80,7 +80,13 @@ pip install -r requirements.txt
 Place your traffic video locally and run:
 
 ```bash
-python smart_traffic.py --source assets/traffic.mp4
+python smart_traffic.py --source assets/traffic.mp4 --tracker bytetrack
+```
+
+If your video is large, you can also resize frames for faster processing:
+
+```bash
+python smart_traffic.py --source assets/traffic.mp4 --tracker bytetrack --width 960
 ```
 
 Press `Esc` to close the OpenCV window.

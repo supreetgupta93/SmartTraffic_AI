@@ -1,5 +1,7 @@
 import argparse
+import os
 import cv2
+import ultralytics
 from ultralytics import YOLO
 
 # Map COCO class IDs to the vehicle label we want to show.
@@ -21,7 +23,7 @@ COLORS = {
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="SmartTraffic AI - Vehicle detection using YOLOv8")
+    parser = argparse.ArgumentParser(description="SmartTraffic AI - Vehicle detection and tracking using YOLOv8")
     parser.add_argument(
         "--source",
         type=str,
@@ -34,16 +36,33 @@ def parse_args():
         default=0.35,
         help="Confidence threshold for detections",
     )
+    parser.add_argument(
+        "--tracker",
+        type=str,
+        default="bytetrack",
+        choices=["bytetrack", "strongsort"],
+        help="Object tracker to use with YOLOv8",
+    )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=960,
+        help="Resize video width for faster processing (keep frame shape)",
+    )
     return parser.parse_args()
 
 
-def draw_box(frame, box, label, confidence):
+def draw_box(frame, box, label, track_id, confidence):
     x1, y1, x2, y2 = map(int, box)
     color = COLORS.get(label, (255, 255, 255))
     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-    text = f"{label} {confidence:.2f}"
+
+    id_text = f"ID:{track_id}" if track_id is not None else "ID:?"
+    text = f"{label} {id_text} {confidence:.2f}"
+
     text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
     text_origin = (x1, y1 - 10 if y1 - 10 > 20 else y1 + 20)
+
     cv2.rectangle(
         frame,
         (text_origin[0], text_origin[1] - text_size[1] - 4),
@@ -63,6 +82,19 @@ def draw_box(frame, box, label, confidence):
     )
 
 
+def get_tracker_config(tracker_name):
+    tracker_name = tracker_name.lower()
+    valid_names = {"bytetrack", "botsort"}
+    if tracker_name not in valid_names:
+        raise ValueError(f"Tracker must be one of {valid_names}, got '{tracker_name}'")
+
+    base_dir = os.path.dirname(ultralytics.__file__)
+    cfg_path = os.path.join(base_dir, "cfg", "trackers", f"{tracker_name}.yaml")
+    if not os.path.isfile(cfg_path):
+        raise FileNotFoundError(f"Tracker configuration not found: {cfg_path}")
+    return cfg_path
+
+
 def main():
     args = parse_args()
 
@@ -74,17 +106,32 @@ def main():
     if not capture.isOpened():
         raise RuntimeError(f"Unable to open source: {args.source}")
 
+    tracker_config = get_tracker_config(args.tracker)
+    seen_ids = {}
+    unique_counts = {label: 0 for label in VEHICLE_CLASSES.values()}
+
     while True:
         success, frame = capture.read()
         if not success:
             print("End of video or cannot read frame.")
             break
 
-        # Run YOLO inference on the current frame.
-        results = model(frame, conf=args.conf, classes=list(VEHICLE_CLASSES.keys()))
+        if frame.shape[1] != args.width:
+            scale = args.width / frame.shape[1]
+            new_height = int(frame.shape[0] * scale)
+            frame = cv2.resize(frame, (args.width, new_height), interpolation=cv2.INTER_AREA)
+
+        results = model.track(
+            frame,
+            tracker=tracker_config,
+            conf=args.conf,
+            classes=list(VEHICLE_CLASSES.keys()),
+            verbose=False,
+        )
         result = results[0]
 
-        count = 0
+        frame_counts = {label: 0 for label in VEHICLE_CLASSES.values()}
+
         if result.boxes is not None:
             for box in result.boxes:
                 cls_id = int(box.cls[0])
@@ -93,17 +140,84 @@ def main():
 
                 label = VEHICLE_CLASSES[cls_id]
                 confidence = float(box.conf[0])
-                coords = box.xyxy[0].cpu().numpy()
-                draw_box(frame, coords, label, confidence)
-                count += 1
 
-        # Display the total vehicle count on the frame.
+                track_id = None
+                if hasattr(box, "id") and box.id is not None:
+                    try:
+                        track_id = int(box.id[0])
+                    except Exception:
+                        track_id = int(box.id)
+
+                if track_id is not None and track_id not in seen_ids:
+                    seen_ids[track_id] = label
+                    unique_counts[label] += 1
+
+                if hasattr(box, "xyxy"):
+                    coords = box.xyxy[0].cpu().numpy()
+                else:
+                    coords = box.xyxy
+
+                draw_box(frame, coords, label, track_id, confidence)
+                frame_counts[label] += 1
+
+        total_unique = sum(unique_counts.values())
+
         cv2.putText(
             frame,
-            f"Total Vehicles: {count}",
-            (15, 35),
+            f"Cars: {frame_counts['Car']}  Buses: {frame_counts['Bus']}",
+            (15, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
-            1,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            f"Trucks: {frame_counts['Truck']}  Bikes: {frame_counts['Bike']}",
+            (15, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            f"Frame total: {sum(frame_counts.values())}",
+            (15, 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            f"Unique Cars: {unique_counts['Car']}  Unique Buses: {unique_counts['Bus']}",
+            (15, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            f"Unique Trucks: {unique_counts['Truck']}  Unique Bikes: {unique_counts['Bike']}",
+            (15, 150),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            f"Total Vehicles: {total_unique}",
+            (15, 180),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
             (0, 255, 255),
             2,
             cv2.LINE_AA,
